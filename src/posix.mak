@@ -378,6 +378,9 @@ parser_test: $G/parser.a $(EX)/test_parser.d
 example_avg: $G/parser.a $(EX)/avg.d
 	CC=$(HOST_CXX) $(HOST_DMD_RUN) -of$@ $(MODEL_FLAG) -L-lstdc++ $(DFLAGS) $G/parser.a $(EX)/avg.d
 
+astfragment: $G/parser.a $(EX)/parseFragment.d
+	CC=$(HOST_CXX) $(HOST_DMD_RUN) -of$@ $(MODEL_FLAG) -L-lstdc++ $(DFLAGS) $G/parser.a $(EX)/parseFragment.d
+
 $G/dmd_frontend: $(FRONT_SRCS) $D/gluelayer.d $(ROOT_SRCS) $G/newdelete.o $G/lexer.a $(STRING_IMPORT_FILES) $(HOST_DMD_PATH)
 	CC=$(HOST_CXX) $(HOST_DMD_RUN) -of$@ $(MODEL_FLAG) -vtls -J$G -J../res -L-lstdc++ $(DFLAGS) $(filter-out $(STRING_IMPORT_FILES) $(HOST_DMD_PATH),$^) -version=NoBackend
 
@@ -395,7 +398,7 @@ endif
 
 clean:
 	rm -R $(GENERATED)
-	rm -f parser_test parser_test.o example_avg example_avg.o
+	rm -f parser_test parser_test.o example_avg example_avg.o astfragment astfragment.o
 	rm -f dmd $(idgen_output)
 	rm -f $(addprefix $D/backend/, $(optabgen_output))
 	@[ ! -d ${PGO_DIR} ] || echo You should issue manually: rm -rf ${PGO_DIR}
