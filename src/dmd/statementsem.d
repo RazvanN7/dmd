@@ -3027,7 +3027,7 @@ else
             errors = true;
         }
 
-        if (fd.isCtorDeclaration())
+        if (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration)
         {
             if (rs.exp)
             {

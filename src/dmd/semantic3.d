@@ -739,7 +739,7 @@ private extern(C++) final class Semantic3Visitor : Visitor
                 if (funcdecl.fbody.isErrorStatement())
                 {
                 }
-                else if (ad2 && funcdecl.isCtorDeclaration())
+                else if (ad2 && (funcdecl.isCtorDeclaration() || funcdecl.isCopyCtorDeclaration()))
                 {
                     /* Append:
                      *  return this;

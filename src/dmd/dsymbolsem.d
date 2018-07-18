@@ -2995,7 +2995,7 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
             if (tf.trust == TRUST.trusted)
                 sc.stc |= STC.trusted;
 
-            if (funcdecl.isCtorDeclaration())
+            if (funcdecl.isCtorDeclaration() || funcdecl.isCopyCtorDeclaration())
             {
                 sc.flags |= SCOPE.ctor;
                 Type tret = ad.handleType();
@@ -3152,7 +3152,7 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
 
         if (StructDeclaration sd = parent.isStructDeclaration())
         {
-            if (funcdecl.isCtorDeclaration())
+            if (funcdecl.isCtorDeclaration() || funcdecl.isCopyCtorDeclaration())
             {
                 goto Ldone;
             }
@@ -3717,6 +3717,50 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
                 ad.defaultCtor = ctd;
             }
         }
+    }
+
+    override void visit(CopyCtorDeclaration cctd)
+    {
+        //printf("CtorDeclaration::semantic() %s\n", toChars());
+        if (cctd.semanticRun >= PASS.semanticdone)
+            return;
+        if (cctd._scope)
+        {
+            sc = cctd._scope;
+            cctd._scope = null;
+        }
+
+        cctd.parent = sc.parent;
+        Dsymbol p = cctd.toParent2();
+        StructDeclaration sd = p.isStructDeclaration();
+        if (!sd)
+        {
+            error(cctd.loc, "copy constructor can only be a member of aggregate, not %s `%s`", p.kind(), p.toChars());
+            cctd.type = Type.terror;
+            cctd.errors = true;
+            return;
+        }
+
+        sc = sc.push();
+
+        sc.stc &= ~STC.static_;
+        sc.flags |= SCOPE.ctor;
+
+        funcDeclarationSemantic(cctd);
+        sc.pop();
+
+        if (cctd.errors)
+            return;
+
+        // copy constructor parameter type needs to be the same as
+        // the struct containing it (not taking into account qualifiers)
+        TypeFunction tf = cctd.type.toTypeFunction();
+        Parameter param = Parameter.getNth(tf.parameters, 0);
+        assert(param);
+        Type unqualParamType = param.type.mutableOf().unSharedOf();
+        Type unqualStructType = sd.type.mutableOf().unSharedOf();
+        if (unqualParamType != unqualStructType)
+            error(cctd.loc, "the copy constructor parameter basic type needs to be `%s`, not `%s`", unqualStructType.toChars(), unqualParamType.toChars());
     }
 
     override void visit(PostBlitDeclaration pbd)

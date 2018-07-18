@@ -226,6 +226,7 @@ extern (C++) class StructDeclaration : AggregateDeclaration
     bool hasNoFields;           // has no fields
     FuncDeclarations postblits; // Array of postblit functions
     FuncDeclaration postblit;   // aggregate postblit
+    Dsymbol copyCtor;           // copy constructor
 
     FuncDeclaration xeq;        // TypeInfo_Struct.xopEquals
     FuncDeclaration xcmp;       // TypeInfo_Struct.xopCmp

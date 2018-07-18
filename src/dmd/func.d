@@ -3240,7 +3240,7 @@ extern (C++) final class FuncLiteralDeclaration : FuncDeclaration
 
 /***********************************************************
  */
-extern (C++) final class CtorDeclaration : FuncDeclaration
+extern (C++) class CtorDeclaration : FuncDeclaration
 {
     extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type)
     {
@@ -3281,6 +3281,59 @@ extern (C++) final class CtorDeclaration : FuncDeclaration
     }
 
     override inout(CtorDeclaration) isCtorDeclaration() inout
+    {
+        return this;
+    }
+
+    override void accept(Visitor v)
+    {
+        v.visit(this);
+    }
+}
+
+/***********************************************************
+ */
+extern (C++) final class CopyCtorDeclaration : FuncDeclaration
+{
+    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type)
+    {
+        super(loc, endloc, Id.copyCtor, stc, type);
+        //printf("CopyCtorDeclaration(loc = %s) %s\n", loc.toChars(), toChars());
+    }
+
+    override Dsymbol syntaxCopy(Dsymbol s)
+    {
+        assert(!s);
+        auto f = new CopyCtorDeclaration(loc, endloc, storage_class, type.syntaxCopy());
+        return FuncDeclaration.syntaxCopy(f);
+    }
+
+    override const(char)* kind() const
+    {
+        return "copy constructor";
+    }
+
+    override const(char)* toChars() const
+    {
+        return "@implicit this";
+    }
+
+    override bool isVirtual() const
+    {
+        return false;
+    }
+
+    override bool addPreInvariant()
+    {
+        return false;
+    }
+
+    override bool addPostInvariant()
+    {
+        return (isThis() && vthis && global.params.useInvariants);
+    }
+
+    override inout(CopyCtorDeclaration) isCopyCtorDeclaration() inout
     {
         return this;
     }

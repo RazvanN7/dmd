@@ -128,6 +128,7 @@ struct ASTBase
         scopeinferred       = (1L << 49),   // 'scope' has been inferred and should not be part of mangling
         future              = (1L << 50),   // introducing new base class function
         local               = (1L << 51),   // do not forward (see dmd.dsymbol.ForwardingScopeDsymbol).
+        implicit            = (1L << 52),   // @implicit
 
         TYPECTOR = (STC.const_ | STC.immutable_ | STC.shared_ | STC.wild),
         FUNCATTR = (STC.ref_ | STC.nothrow_ | STC.nogc | STC.pure_ | STC.property | STC.safe | STC.trusted | STC.system),
@@ -819,6 +820,19 @@ struct ASTBase
         extern (D) this(const ref Loc loc, Loc endloc, StorageClass stc, Type type)
         {
             super(loc, endloc, Id.ctor, stc, type);
+        }
+
+        override void accept(Visitor v)
+        {
+            v.visit(this);
+        }
+    }
+
+    extern (C++) final class CopyCtorDeclaration : FuncDeclaration
+    {
+        extern (D) this(const ref Loc loc, Loc endloc, StorageClass stc, Type type)
+        {
+            super(loc, endloc, Id.copyCtor, stc, type);
         }
 
         override void accept(Visitor v)
