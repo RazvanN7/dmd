@@ -86,6 +86,13 @@ private extern (C++) FuncDeclaration buildPostBlit(StructDeclaration sd, Scope* 
     if (sd.isUnionDeclaration())
         return null;
 
+    bool hasCopyCtor = sd.copyCtor !is null;
+
+    if (hasCopyCtor && sd.postblits.dim == 1)
+    {
+        error(sd.postblits[0].loc, "struct `%s` cannot define both a postblit and copy constructor. Use the copy constructor.", sd.toChars());
+        return null;
+    }
     // by default, the storage class of the created postblit
     StorageClass stc = STC.safe | STC.nothrow_ | STC.pure_ | STC.nogc;
     Loc declLoc = sd.postblits.dim ? sd.postblits[0].loc : sd.loc;
@@ -287,6 +294,11 @@ private extern (C++) FuncDeclaration buildPostBlit(StructDeclaration sd, Scope* 
     if (postblitCalls.dim || (stc & STC.disable))
     {
         //printf("Building __fieldPostBlit()\n");
+        if (hasCopyCtor)
+        {
+            sd.error("contains fields with postblits, therefore it cannot have a copy constructor.");
+            return null;
+        }
         checkShared();
         auto dd = new PostBlitDeclaration(declLoc, Loc.initial, stc, Id.__fieldPostblit);
         dd.generated = true;
@@ -346,6 +358,20 @@ private extern (C++) FuncDeclaration buildPostBlit(StructDeclaration sd, Scope* 
         _alias.addMember(sc, sd); // add to symbol table
     }
     return xpostblit;
+}
+
+private Dsymbol buildCopyCtor(StructDeclaration sd, Scope* sc)
+{
+    auto s = sd.search(Loc.initial, Id.copyCtor);
+    if (s)
+    {
+        // TODO: check if it can be typechecked as a normal function
+    }
+    else
+    {
+    
+    }
+    return s;
 }
 
 private uint setMangleOverride(Dsymbol s, char* sym)
@@ -574,6 +600,12 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
 
         if (dsym.semanticRun >= PASS.semanticdone)
             return;
+
+        if (dsym.storage_class & STC.implicit)
+        {
+            dsym.error("cannot be marked with `@implicit` because it is not a copy constructor");
+            return;
+        }
 
         Scope* scx = null;
         if (dsym._scope)
@@ -2857,6 +2889,12 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
             return;
         }
 
+        if ((funcdecl.storage_class & STC.implicit) && !funcdecl.isCopyCtorDeclaration())
+        {
+            funcdecl.error("cannot be marked with `@implicit` because it is not a copy constructor");
+            return;
+        }
+
         if (funcdecl.semanticRun >= PASS.semanticdone)
             return;
         assert(funcdecl.semanticRun <= PASS.semantic);
@@ -4262,7 +4300,7 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
             for (size_t i = 0; i < sd.members.dim; i++)
             {
                 auto s = (*sd.members)[i];
-                //printf("adding member '%s' to '%s'\n", s.toChars(), this.toChars());
+                //printf("adding member '%s' to '%s'\n", s.toChars(), sd.toChars());
                 s.addMember(sc, sd);
             }
         }
@@ -4338,6 +4376,7 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
         // Look for the constructor
         sd.ctor = sd.searchCtor();
 
+        sd.copyCtor = buildCopyCtor(sd, sc2);
         sd.dtor = buildDtor(sd, sc2);
         sd.tidtor = buildExternDDtor(sd, sc2);
         sd.postblit = buildPostBlit(sd, sc2);

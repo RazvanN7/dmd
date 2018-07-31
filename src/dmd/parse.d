@@ -2406,9 +2406,11 @@ final class Parser(AST) : Lexer
             if (stc & AST.STC.static_)
                 error(loc, "constructors and copy constructors cannot be static");
         }
-        else if (StorageClass ss = stc & (AST.STC.shared_ | AST.STC.static_) && !(stc & AST.STC.implicit)) // this()
+        else if (StorageClass ss = stc & (AST.STC.shared_ | AST.STC.static_)) // this()
         {
-            if (ss == AST.STC.static_)
+            if (stc & AST.STC.implicit)
+            {}
+            else if (ss == AST.STC.static_)
                 error(loc, "use `static this()` to declare a static constructor");
             else if (ss == (AST.STC.shared_ | AST.STC.static_))
                 error(loc, "use `shared static this()` to declare a shared static constructor");

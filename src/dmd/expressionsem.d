@@ -1716,10 +1716,19 @@ private bool functionParameters(const ref Loc loc, Scope* sc,
             Parameter p = Parameter.getNth(tf.parameters, i);
             if (!(p.storageClass & STC.lazy_ && p.type.ty == Tvoid))
             {
+
                 Type tprm = p.type.hasWild()
                     ? p.type.substWildTo(wildmatch)
                     : p.type;
-                if (!tprm.equals(arg.type))
+
+                bool hasCopyCtor;
+                if (arg.type.ty == Tstruct)
+                {
+                    TypeStruct targ = cast(TypeStruct)(arg.type);
+                    if (targ.sym.copyCtor)
+                        hasCopyCtor = true;
+                }
+                if (!hasCopyCtor && !tprm.equals(arg.type))
                 {
                     //printf("arg.type = %s, p.type = %s\n", arg.type.toChars(), p.type.toChars());
                     arg = arg.implicitCastTo(sc, tprm);
@@ -2029,7 +2038,7 @@ private bool functionParameters(const ref Loc loc, Scope* sc,
                  */
                 Type tv = arg.type.baseElemOf();
                 if (!isRef && tv.ty == Tstruct)
-                    arg = doCopyOrMove(sc, arg);
+                    arg = doCopyOrMove(sc, arg, parameter.type);
             }
 
             (*arguments)[i] = arg;
@@ -7715,7 +7724,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                         result = e;
                         return;
                     }
-                    if (sd.postblit)
+                    if (sd.postblit || sd.copyCtor)
                     {
                         /* We have a copy constructor for this
                          */
@@ -7741,21 +7750,39 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                 return setError();
                             }
 
-                            /* Rewrite as:
-                             *  (e1 = e2).postblit();
-                             *
-                             * Blit assignment e1 = e2 returns a reference to the original e1,
-                             * then call the postblit on it.
-                             */
-                            Expression e = e1x.copy();
-                            e.type = e.type.mutableOf();
-                            if (e.type.isShared && !sd.type.isShared)
-                                e.type = e.type.unSharedOf();
-                            e = new BlitExp(exp.loc, e, e2x);
-                            e = new DotVarExp(exp.loc, e, sd.postblit, false);
-                            e = new CallExp(exp.loc, e);
-                            result = e.expressionSemantic(sc);
-                            return;
+                            if (sd.copyCtor)
+                            {
+                                /* Rewrite as:
+                                 * e1 = init, e1.copyCtor(e2);
+                                 */
+                                 Expression einit = getInitExp(sd, sc, exp, t1, e1x);
+                                 if (!einit)
+                                     return setError();
+                                 Expression e;
+                                 e = new DotIdExp(exp.loc, e1x, Id.copyCtor);
+                                 e = new CallExp(exp.loc, e, e2x);
+                                 e = new CommaExp(exp.loc, einit, e);
+                                 result = e.expressionSemantic(sc);
+                                 return;
+                            }
+                            else
+                            {
+                                /* Rewrite as:
+                                 *  (e1 = e2).postblit();
+                                 *
+                                 * Blit assignment e1 = e2 returns a reference to the original e1,
+                                 * then call the postblit on it.
+                                 */
+                                Expression e = e1x.copy();
+                                e.type = e.type.mutableOf();
+                                if (e.type.isShared && !sd.type.isShared)
+                                    e.type = e.type.unSharedOf();
+                                e = new BlitExp(exp.loc, e, e2x);
+                                e = new DotVarExp(exp.loc, e, sd.postblit, false);
+                                e = new CallExp(exp.loc, e);
+                                result = e.expressionSemantic(sc);
+                                return;
+                            }
                         }
                         else
                         {
