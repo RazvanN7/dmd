@@ -635,7 +635,7 @@ private extern(C++) final class Semantic3Visitor : Visitor
                         s.checkCtorConstInit();
                     }
                 }
-                else if (ad2 && (funcdecl.isCtorDeclaration() || funcdecl.isCopyCtorDeclaration()))
+                else if (ad2 && funcdecl.isCtorDeclaration())
                 {
                     ClassDeclaration cd = ad2.isClassDeclaration();
 
@@ -739,7 +739,7 @@ private extern(C++) final class Semantic3Visitor : Visitor
                 if (funcdecl.fbody.isErrorStatement())
                 {
                 }
-                else if (ad2 && (funcdecl.isCtorDeclaration() || funcdecl.isCopyCtorDeclaration()))
+                else if (ad2 && funcdecl.isCtorDeclaration())
                 {
                     /* Append:
                      *  return this;
@@ -1246,7 +1246,7 @@ private extern(C++) final class Semantic3Visitor : Visitor
         if (!f.deco && funcdecl.ident != Id.xopEquals && funcdecl.ident != Id.xopCmp)
         {
             sc = sc.push();
-            if (funcdecl.isCtorDeclaration() || funcdecl.isCopyCtorDeclaration()) // https://issues.dlang.org/show_bug.cgi?id=#15665
+            if (funcdecl.isCtorDeclaration()) // https://issues.dlang.org/show_bug.cgi?id=#15665
                 sc.flags |= SCOPE.ctor;
             sc.stc = 0;
             sc.linkage = funcdecl.linkage; // https://issues.dlang.org/show_bug.cgi?id=8496

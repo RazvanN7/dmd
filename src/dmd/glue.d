@@ -1163,7 +1163,7 @@ void FuncDeclaration_toObjFile(FuncDeclaration fd, bool multiobj)
         f.Fstartblock = bx.startblock;
 //      einit = el_combine(einit,bx.init);
 
-        if (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration())
+        if (fd.isCtorDeclaration())
         {
             assert(sthis);
             foreach (b; BlockRange(f.Fstartblock))

@@ -2434,7 +2434,7 @@ final class Parser(AST) : Lexer
 
         AST.FuncDeclaration f;
         if (stc & AST.STC.implicit)
-            f = new AST.CopyCtorDeclaration(loc, Loc.initial, stc, tf);
+            f = new AST.CtorDeclaration(loc, Loc.initial, stc, tf, true);
         else
             f = new AST.CtorDeclaration(loc, Loc.initial, stc, tf);
         AST.Dsymbol s = parseContracts(f);

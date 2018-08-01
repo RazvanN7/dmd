@@ -4796,6 +4796,25 @@ extern (C++) final class TypeFunction : TypeNext
                     else
                         m = arg.implicitConvTo(tprm);
                     //printf("match %d\n", m);
+
+                    // there's no match, but there might be a copy constructor
+                    // that creates the needed qualified type
+                    bool isRef = (p.storageClass & (STC.ref_ | STC.out_)) != 0;
+                    if (!isRef && m == MATCH.nomatch && targ.ty == Tstruct && tprm.ty == Tstruct)
+                    {
+                        // if the argument and the parameter are the of same unqualified struct type
+                        StructDeclaration argStruct = (cast(TypeStruct)targ).sym;
+                        StructDeclaration prmStruct = (cast(TypeStruct)tprm).sym;
+
+                        // and the struct has a copy constructor, there's possibility
+                        // that one of the overloads of the copy constructor correctly deals
+                        // with this case. This will be checked later; for now, it is considered
+                        // that the parameter matches
+                        if (argStruct == prmStruct && argStruct.copyCtor)
+                        {
+                            m = MATCH.exact;
+                        }
+                    }
                 }
 
                 // Non-lvalues do not match ref or out parameters

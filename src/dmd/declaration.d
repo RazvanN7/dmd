@@ -87,7 +87,7 @@ bool modifyFieldVar(Loc loc, Scope* sc, VarDeclaration var, Expression e1)
         if (s)
             fd = s.isFuncDeclaration();
         if (fd &&
-            (((fd.isCtorDeclaration() || fd.isCopyCtorDeclaration) && var.isField()) ||
+            ((fd.isCtorDeclaration() && var.isField()) ||
              (fd.isStaticCtorDeclaration() && !var.isField())) &&
             fd.toParent2() == var.toParent2() &&
             (!e1 || e1.op == TOK.this_))

@@ -2155,7 +2155,7 @@ extern (C++) final class TemplateDeclaration : ScopeDsymbol
         // Shouldn't run semantic on default arguments and return type.
         for (size_t i = 0; i < tf.parameters.dim; i++)
             (*tf.parameters)[i].defaultArg = null;
-        if (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration())
+        if (fd.isCtorDeclaration())
         {
             // For constructors, emitting return type is necessary for
             // isReturnIsolated() in functionResolve.
@@ -2417,7 +2417,7 @@ void functionResolve(Match* m, Dsymbol dstart, Loc loc, Scope* sc, Objects* tiar
          * that it is implicitly convertible to tthis.
          */
         Type tthis_fd = fd.needThis() ? tthis : null;
-        bool isCtorCall = tthis_fd && (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration()) ;
+        bool isCtorCall = tthis_fd && fd.isCtorDeclaration();
         if (isCtorCall)
         {
             //printf("%s tf.mod = x%x tthis_fd.mod = x%x %d\n", tf.toChars(),

@@ -2910,7 +2910,7 @@ elem *toElem(Expression e, IRState *irs)
                 {
                     auto dve = cast(DotVarExp)ce.e1;
                     auto fd = dve.var.isFuncDeclaration();
-                    if (fd && (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration()))
+                    if (fd && fd.isCtorDeclaration())
                     {
                         if (dve.e1.op == TOK.structLiteral)
                         {
@@ -3654,7 +3654,7 @@ elem *toElem(Expression e, IRState *irs)
                  *   eeq: (dctor info ((_flag=0),((__ctmp = initializer),__ctmp)))   for EH_DWARF
                  *   ec:  __ctmp
                  */
-                if (fd && (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration()))
+                if (fd && fd.isCtorDeclaration())
                 {
                     //printf("test30 %s\n", dve.e1.toChars());
                     if (dve.e1.op == TOK.comma)

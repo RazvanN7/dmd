@@ -2038,7 +2038,7 @@ private bool functionParameters(const ref Loc loc, Scope* sc,
                  */
                 Type tv = arg.type.baseElemOf();
                 if (!isRef && tv.ty == Tstruct)
-                    arg = doCopyOrMove(sc, arg, parameter.type);
+                    arg = doCopyOrMove(sc, arg, parameter ? parameter.type : null);
             }
 
             (*arguments)[i] = arg;
@@ -4447,8 +4447,13 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             assert(exp.f);
             tiargs = null;
 
+            //printf("exp.f: %s\n", exp.f.toChars());
+
             if (exp.f.overnext)
+            {
                 exp.f = resolveFuncCall(exp.loc, sc, exp.f, tiargs, null, exp.arguments, 2);
+                printf("after error\n");
+            }
             else
             {
                 exp.f = exp.f.toAliasFunc();
@@ -4456,6 +4461,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                 const(char)* failMessage;
                 if (!tf.callMatch(null, exp.arguments, 0, &failMessage))
                 {
+
                     OutBuffer buf;
                     buf.writeByte('(');
                     argExpTypesToCBuffer(&buf, exp.arguments);
@@ -7743,13 +7749,6 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
 
                         if (e2x.isLvalue())
                         {
-                            if (!e2x.type.implicitConvTo(e1x.type))
-                            {
-                                exp.error("conversion error from `%s` to `%s`",
-                                    e2x.type.toChars(), e1x.type.toChars());
-                                return setError();
-                            }
-
                             if (sd.copyCtor)
                             {
                                 /* Rewrite as:
@@ -7762,11 +7761,21 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                  e = new DotIdExp(exp.loc, e1x, Id.copyCtor);
                                  e = new CallExp(exp.loc, e, e2x);
                                  e = new CommaExp(exp.loc, einit, e);
+                                 //printf("e = %s\n", e.toChars());
+                                 //uint errors = global.startGagging();
                                  result = e.expressionSemantic(sc);
+                                 //if (!global.endGagging(errors))
                                  return;
                             }
                             else
                             {
+                                if (!e2x.type.implicitConvTo(e1x.type))
+                                {
+                                    exp.error("conversion error from `%s` to `%s`",
+                                        e2x.type.toChars(), e1x.type.toChars());
+                                    return setError();
+                                }
+
                                 /* Rewrite as:
                                  *  (e1 = e2).postblit();
                                  *

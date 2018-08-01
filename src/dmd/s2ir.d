@@ -756,7 +756,7 @@ private extern (C++) class S2irVisitor : Visitor
                     {
                         auto dve = cast(DotVarExp)ce.e1;
                         auto fd = dve.var.isFuncDeclaration();
-                        if (fd && (fd.isCtorDeclaration() || fd.isCopyCtorDeclaration()))
+                        if (fd && fd.isCtorDeclaration())
                         {
                             if (dve.e1.op == TOK.structLiteral)
                             {
