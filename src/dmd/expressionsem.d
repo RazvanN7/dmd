@@ -3900,6 +3900,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             }
         }
 
+
         t1 = exp.e1.type ? exp.e1.type.toBasetype() : null;
 
         if (exp.e1.op == TOK.error)
@@ -4138,7 +4139,9 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                 return setError();
             }
 
+            //printf("before disable\n");
             checkFunctionAttributes(exp, sc, exp.f);
+            //printf("after disable\n");
             checkAccess(exp.loc, sc, ue.e1, exp.f);
             if (!exp.f.needThis())
             {
@@ -4380,7 +4383,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             }
 
             const(char)* failMessage;
-            if (!tf.callMatch(null, exp.arguments, 0, &failMessage))
+            if (!tf.callMatch(null, exp.arguments, 0, &failMessage, sc))
             {
                 OutBuffer buf;
                 buf.writeByte('(');
@@ -4450,16 +4453,13 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             //printf("exp.f: %s\n", exp.f.toChars());
 
             if (exp.f.overnext)
-            {
                 exp.f = resolveFuncCall(exp.loc, sc, exp.f, tiargs, null, exp.arguments, 2);
-                printf("after error\n");
-            }
             else
             {
                 exp.f = exp.f.toAliasFunc();
                 TypeFunction tf = cast(TypeFunction)exp.f.type;
                 const(char)* failMessage;
-                if (!tf.callMatch(null, exp.arguments, 0, &failMessage))
+                if (!tf.callMatch(null, exp.arguments, 0, &failMessage, sc))
                 {
 
                     OutBuffer buf;
@@ -7754,18 +7754,21 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                 /* Rewrite as:
                                  * e1 = init, e1.copyCtor(e2);
                                  */
-                                 Expression einit = getInitExp(sd, sc, exp, t1, e1x);
-                                 if (!einit)
-                                     return setError();
-                                 Expression e;
-                                 e = new DotIdExp(exp.loc, e1x, Id.copyCtor);
-                                 e = new CallExp(exp.loc, e, e2x);
-                                 e = new CommaExp(exp.loc, einit, e);
-                                 //printf("e = %s\n", e.toChars());
-                                 //uint errors = global.startGagging();
-                                 result = e.expressionSemantic(sc);
-                                 //if (!global.endGagging(errors))
-                                 return;
+                                Expression einit = getInitExp(sd, sc, exp, t1, e1x);
+                                if (!einit)
+                                    return setError();
+                                Expression e;
+                                e = new DotIdExp(exp.loc, e1x, Id.copyCtor);
+                                e = new CallExp(exp.loc, e, e2x);
+                                e = new CommaExp(exp.loc, einit, e);
+                                //printf("e = %s\n", e.toChars());
+                                /* If semantic is performed correctly on e
+                                 * there is a copy constructor overload to be used.
+                                 * Otherwise, implicit copying may be used
+                                 */
+                                result = e.expressionSemantic(sc);
+                                if (result.op != TOK.error)
+                                    return;
                             }
                             else
                             {

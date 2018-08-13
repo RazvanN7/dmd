@@ -2748,8 +2748,15 @@ extern (C++) FuncDeclaration resolveFuncCall(const ref Loc loc, Scope* sc, Dsymb
         {
             assert(fd);
 
+            uint errors;
+            if (fd.isCopyCtorDeclaration())
+                errors = global.startGagging();
+
             if (fd.checkDisabled(loc, sc))
+            {
+                global.endGagging(errors);
                 return null;
+            }
 
             bool hasOverloads = fd.overnext !is null;
             auto tf = fd.type.toTypeFunction();
@@ -2827,6 +2834,8 @@ extern (C++) FuncDeclaration resolveFuncCall(const ref Loc loc, Scope* sc, Dsymb
                     .errorSupplemental(loc, "... (%d more, -v to show) ...", num);
                 return 1;   // stop iterating
             }, sc);
+            if (fd.isCopyCtorDeclaration())
+                global.endGagging(errors);
         }
     }
     else if (m.nextf)
@@ -3242,29 +3251,27 @@ extern (C++) final class FuncLiteralDeclaration : FuncDeclaration
  */
 extern (C++) class CtorDeclaration : FuncDeclaration
 {
-    bool isCopyCtor;
     extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type, bool isCopyCtor = false)
     {
         super(loc, endloc, isCopyCtor ? Id.copyCtor : Id.ctor, stc, type);
-        this.isCopyCtor = isCopyCtor;
         //printf("CtorDeclaration(loc = %s) %s\n", loc.toChars(), toChars());
     }
 
     override Dsymbol syntaxCopy(Dsymbol s)
     {
         assert(!s);
-        auto f = new CtorDeclaration(loc, endloc, storage_class, type.syntaxCopy(), isCopyCtor);
+        auto f = new CtorDeclaration(loc, endloc, storage_class, type.syntaxCopy());
         return FuncDeclaration.syntaxCopy(f);
     }
 
     override const(char)* kind() const
     {
-        return isCopyCtor ? "copy constructor" : "constructor";
+        return "constructor";
     }
 
     override const(char)* toChars() const
     {
-        return isCopyCtor ? "@implicit this" : "this";
+        return "this";
     }
 
     override bool isVirtual() const
@@ -3287,9 +3294,39 @@ extern (C++) class CtorDeclaration : FuncDeclaration
         return this;
     }
 
-    bool isCopyCtorDeclaration()
+    override void accept(Visitor v)
     {
-        return isCopyCtor;
+        v.visit(this);
+    }
+}
+
+extern (C++) class CopyCtorDeclaration : CtorDeclaration
+{
+    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type)
+    {
+        super(loc, endloc, stc, type, true);
+    }
+
+    override Dsymbol syntaxCopy(Dsymbol s)
+    {
+        assert(!s);
+        auto f = new CopyCtorDeclaration(loc, endloc, storage_class, type.syntaxCopy());
+        return FuncDeclaration.syntaxCopy(f);
+    }
+
+    override const(char)* kind() const
+    {
+        return "copy constructor";
+    }
+
+    override const(char)* toChars() const
+    {
+        return "@implicit this";
+    }
+
+    override inout(CopyCtorDeclaration) isCopyCtorDeclaration() inout
+    {
+        return this;
     }
 
     override void accept(Visitor v)

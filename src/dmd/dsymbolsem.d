@@ -360,16 +360,111 @@ private extern (C++) FuncDeclaration buildPostBlit(StructDeclaration sd, Scope* 
     return xpostblit;
 }
 
+private ushort createModKey(MOD mod1, MOD mod2)
+{
+    return ((mod1 << 8) | mod2);
+}
+
+private CopyCtorDeclaration generateCopyCtorDeclaration(StructDeclaration sd, StorageClass paramStc, StorageClass funcStc)
+{
+    auto fparams = new Parameters();
+    auto structType = sd.type;
+    fparams.push(new Parameter(paramStc | STC.ref_, structType, Id.p, null, null));
+    auto tf = new TypeFunction(fparams, structType, 0, LINK.d, STC.ref_);
+    auto ccd = new CopyCtorDeclaration(sd.loc, Loc.initial, STC.ref_, tf);
+    ccd.storage_class |= funcStc;
+    ccd.storage_class |= STC.inference;
+    ccd.generated = true;
+
+    return ccd;
+}
+
+private Statement generateCopyCtorBody(StructDeclaration sd)
+{
+    Loc loc;
+    Expression e;
+
+    foreach (v; sd.fields)
+    {
+        auto ec = new AssignExp(loc,
+            new DotVarExp(loc, new ThisExp(loc), v),
+            new DotVarExp(loc, new IdentifierExp(loc, Id.p), v));
+        e = Expression.combine(e, ec);
+        //printf("e.toChars = %s\n", e.toChars());
+    }
+
+    Statement s1 = new ExpStatement(loc, e);
+    return new CompoundStatement(loc, s1);
+}
+
 private Dsymbol buildCopyCtor(StructDeclaration sd, Scope* sc)
 {
-    auto s = sd.search(Loc.initial, Id.copyCtor);
-    if (s)
+    Dsymbol s = sd.search(sd.loc, Id.copyCtor);
+    StorageClass[ModBits] stcTable;
+    foreach (v; sd.fields)
     {
-        // TODO: check if it can be typechecked as a normal function
+        if (v.storage_class & STC.ref_)
+            continue;
+        if (v.overlapped)
+            continue;
+        Type tv = v.type.baseElemOf();
+        if (tv.ty != Tstruct)
+            continue;
+        StructDeclaration sdv = (cast(TypeStruct)tv).sym;
+        if (auto copyCtor = sdv.copyCtor)
+        {
+            overloadApply(copyCtor, (Dsymbol s)
+            {
+                if (auto ccd = s.isCopyCtorDeclaration())
+                {
+                    TypeFunction tf = ccd.type.toTypeFunction();
+                    Parameter param = Parameter.getNth(tf.parameters, 0);
+                    assert(param);
+                    ModBits key = createModKey(param.type.mod, tf.mod);
+                    if (key in sd.copyCtorTypes)        // we have a user defined copy constructor for this combination
+                        return 0;
+                    if (key in stcTable)
+                        stcTable[key] = mergeFuncAttrs(stcTable[key], ccd);
+                    else
+                        stcTable[key] = mergeFuncAttrs(STC.safe | STC.nothrow_ | STC.pure_ | STC.nogc, ccd);
+
+                    //printf("fd: %s, stc: %s\n", tf.toChars(), stcToChars(stcTable[key]));
+                }
+                return 0;
+            });
+        }
     }
-    else
+
+    if (stcTable.length)
     {
-    
+        auto copyCtorBody = generateCopyCtorBody(sd);
+        foreach (key; stcTable.keys)
+        {
+            auto stc = stcTable[key];
+            MOD paramMod = cast(MOD)(key >> 8);
+            MOD funcMod = cast(MOD)key;
+            auto ccd = generateCopyCtorDeclaration(sd, ModToStc(paramMod), ModToStc(funcMod));
+            //printf("generating for %s\n", ccd.type.toChars());
+            ccd.fbody = copyCtorBody.syntaxCopy();
+            sd.members.push(ccd);
+            ccd.addMember(sc, sd);
+            const errors = global.startGagging();
+            Scope* sc2 = sc.push();
+            sc2.stc = 0;
+            sc2.linkage = LINK.d;
+            ccd.dsymbolSemantic(sc2);
+            ccd.semantic2(sc2);
+            ccd.semantic3(sc2);
+            //printf("ccd semantic: %s\n", ccd.type.toChars());
+            sc2.pop();
+            if (global.endGagging(errors))
+            {
+                ccd.storage_class |= STC.disable;
+                ccd.fbody = null;
+            }
+            else if (!s)
+                s = ccd;
+        }
     }
     return s;
 }
@@ -3666,9 +3761,9 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
         funcDeclarationSemantic(funcdecl);
     }
 
-    void copyCtorSemantic(CtorDeclaration cctd)
+    override void visit(CopyCtorDeclaration cctd)
     {
-        //printf("CtorDeclaration::semantic() %s\n", toChars());
+        //printf("CopyCtorDeclaration::semantic() %s\n", toChars());
         if (cctd.semanticRun >= PASS.semanticdone)
             return;
         if (cctd._scope)
@@ -3704,6 +3799,9 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
         TypeFunction tf = cctd.type.toTypeFunction();
         Parameter param = Parameter.getNth(tf.parameters, 0);
         assert(param);
+
+        ModBits key = createModKey(param.type.mod, tf.mod);
+        sd.copyCtorTypes[key] = true;
         Type unqualParamType = param.type.mutableOf().unSharedOf();
         Type unqualStructType = sd.type.mutableOf().unSharedOf();
         if (unqualParamType != unqualStructType)
@@ -3715,12 +3813,6 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
         //printf("CtorDeclaration::semantic() %s\n", toChars());
         if (ctd.semanticRun >= PASS.semanticdone)
             return;
-
-        if (ctd.isCopyCtorDeclaration)
-        {
-            copyCtorSemantic(ctd);
-            return;
-        }
 
         if (ctd._scope)
         {

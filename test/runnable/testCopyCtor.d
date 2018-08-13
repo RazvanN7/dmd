@@ -55,6 +55,8 @@ void test1()
     const A a3 = a2;
     shared A a4 = a3;
     A a5 = a3;
+    import std.stdio : writeln;
+    writeln(result);
     assert(result == "ADBEC");
 }
 
