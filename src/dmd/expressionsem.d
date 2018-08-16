@@ -4139,9 +4139,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                 return setError();
             }
 
-            //printf("before disable\n");
             checkFunctionAttributes(exp, sc, exp.f);
-            //printf("after disable\n");
             checkAccess(exp.loc, sc, ue.e1, exp.f);
             if (!exp.f.needThis())
             {
@@ -7754,7 +7752,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                 /* Rewrite as:
                                  * e1 = init, e1.copyCtor(e2);
                                  */
-                                Expression einit = getInitExp(sd, sc, exp, t1, e1x);
+                                Expression einit = getInitExp(sd, sc, exp.loc, t1, e1x);
                                 if (!einit)
                                     return setError();
                                 Expression e;

@@ -229,7 +229,7 @@ extern (C++) class StructDeclaration : AggregateDeclaration
     FuncDeclarations postblits; // Array of postblit functions
     FuncDeclaration postblit;   // aggregate postblit
 
-    Dsymbol copyCtor;           // copy constructor
+    FuncDeclaration copyCtor;           // copy constructor
     bool[ModBits] copyCtorTypes;  // copy constructor source-destination qualifiers
 
     FuncDeclaration xeq;        // TypeInfo_Struct.xopEquals
