@@ -55,17 +55,15 @@ void test1()
     const A a3 = a2;
     shared A a4 = a3;
     A a5 = a3;
-    import std.stdio : writeln;
-    writeln(result);
     assert(result == "ADBEC");
 }
 
 // copy constructor has priority over alias this
 struct B
 {
-    A fun(immutable A)
+    B fun(immutable B)
     {
-        return A();
+        return B();
     }
 
     @implicit this(ref immutable B rhs)
@@ -99,8 +97,7 @@ void test3()
 {
     result = "";
     A a1;
-    shared A a2;
-    a2 = fun(a1);
+    shared A a2 = fun(a1);
     immutable A a3 = fun2(a2);
     assert(result == "AFHG");
 }
