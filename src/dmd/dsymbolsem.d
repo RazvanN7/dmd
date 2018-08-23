@@ -463,6 +463,7 @@ private FuncDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
     return s ? s.isFuncDeclaration : null;
 }
 
+/*
 extern (C++) FuncDeclaration buildOpAssignWithCpCtor(StructDeclaration sd, Scope* sc)
 {
     if (!sd.type.isAssignable)
@@ -471,6 +472,7 @@ extern (C++) FuncDeclaration buildOpAssignWithCpCtor(StructDeclaration sd, Scope
     auto cpCtor = sd.copyCtor;
     StorageClass[MOD] copyCtorTable;
     FuncDeclaration retFunc;
+
     overloadApply(cpCtor, (Dsymbol s)
     {
         if (auto ccd = s.isCopyCtorDeclaration())
@@ -581,6 +583,7 @@ extern (C++) FuncDeclaration buildOpAssignWithCpCtor(StructDeclaration sd, Scope
 
     return retFunc;
 }
+*/
 
 private uint setMangleOverride(Dsymbol s, char* sym)
 {
