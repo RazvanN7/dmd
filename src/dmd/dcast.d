@@ -531,7 +531,7 @@ MATCH implicitConvTo(Expression e, Type t)
                         continue;
                     Type te = e.sd.fields[i].type.addMod(t.mod);
                     MATCH m2 = el.implicitConvTo(te);
-                    //printf("\t%s => %s, match = %d\n", el.toChars(), te.toChars(), m2);
+                    printf("\t%s => %s, match = %d\n", el.toChars(), te.toChars(), m2);
                     if (m2 < result)
                         result = m2;
                 }

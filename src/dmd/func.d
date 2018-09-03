@@ -3251,11 +3251,19 @@ extern (C++) final class FuncLiteralDeclaration : FuncDeclaration
  */
 extern (C++) class CtorDeclaration : FuncDeclaration
 {
-    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type, bool isCopyCtor = false)
+    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type)
     {
-        super(loc, endloc, isCopyCtor ? Id.copyCtor : Id.ctor, stc, type);
+        super(loc, endloc, Id.ctor, stc, type);
         //printf("CtorDeclaration(loc = %s) %s\n", loc.toChars(), toChars());
     }
+
+    // used by CopyCtorDeclaration
+    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type, Identifier ident)
+    {
+        super(loc, endloc, ident, stc, type);
+        //printf("CtorDeclaration(loc = %s) %s\n", loc.toChars(), toChars());
+    }
+
 
     override Dsymbol syntaxCopy(Dsymbol s)
     {
@@ -3302,9 +3310,9 @@ extern (C++) class CtorDeclaration : FuncDeclaration
 
 extern (C++) class CopyCtorDeclaration : CtorDeclaration
 {
-    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type)
+    extern (D) this(const ref Loc loc, const ref Loc endloc, StorageClass stc, Type type, bool isByRef = true)
     {
-        super(loc, endloc, stc, type, true);
+        super(loc, endloc, stc, type, isByRef ? Id.copyCtor : Id.byValueCopyCtor);
     }
 
     override Dsymbol syntaxCopy(Dsymbol s)

@@ -7759,7 +7759,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                 e = new DotIdExp(exp.loc, e1x, Id.copyCtor);
                                 e = new CallExp(exp.loc, e, e2x);
                                 e = new CommaExp(exp.loc, einit, e);
-                                //printf("e = %s\n", e.toChars());
+                                printf("e: %s\n", e.toChars());
                                 /* If semantic is performed correctly on e
                                  * there is a copy constructor overload to be used.
                                  * Otherwise, implicit copying may be used
@@ -7800,6 +7800,24 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                              * so should not call the destructor on it.
                              */
                             e2x = valueNoDtor(e2x);
+                            if (sd.copyCtor)
+                            {
+                                Expression einit = getInitExp(sd, sc, exp.loc, t1, e1x);
+                                if (!einit)
+                                    return setError();
+                                Expression e;
+                                e = new DotIdExp(exp.loc, e1x, Id.byValueCopyCtor);
+                                e = new CallExp(exp.loc, e, e2x);
+                                e = new CommaExp(exp.loc, einit, e);
+                                printf("e: %s\n", e.toChars());
+                                /* If semantic is performed correctly on e
+                                 * there is a copy constructor overload to be used.
+                                 * Otherwise, implicit copying may be used
+                                 */
+                                result = e.expressionSemantic(sc);
+                                if (result.op != TOK.error)
+                                    return;
+                            }
                         }
                     }
                 }

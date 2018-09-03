@@ -397,7 +397,7 @@ private Statement generateCopyCtorBody(StructDeclaration sd)
     return new CompoundStatement(loc, s1);
 }
 
-private FuncDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
+private CopyCtorDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
 {
     Dsymbol s = sd.search(sd.loc, Id.copyCtor);
     bool[ModBits] copyCtorTable;
@@ -415,16 +415,16 @@ private FuncDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
         {
             overloadApply(copyCtor, (Dsymbol s)
             {
-                if (auto ccd = s.isCopyCtorDeclaration())
-                {
-                    TypeFunction tf = ccd.type.toTypeFunction();
-                    Parameter param = Parameter.getNth(tf.parameters, 0);
-                    assert(param);
-                    ModBits key = createModKey(param.type.mod, tf.mod);
-                    if (key in sd.copyCtorTypes)        // we have a user defined copy constructor for this combination
-                        return 0;
-                    copyCtorTable[key] = true;
-                }
+                auto ccd = s.isCopyCtorDeclaration();
+                assert(ccd);
+                TypeFunction tf = ccd.type.toTypeFunction();
+                Parameter param = Parameter.getNth(tf.parameters, 0);
+                assert(param);
+                ModBits key = createModKey(param.type.mod, tf.mod);
+                if (key in sd.copyCtorTypes)        // we have a user defined copy constructor for this combination
+                    return 0;
+                copyCtorTable[key] = true;
+
                 return 0;
             });
         }
@@ -460,130 +460,41 @@ private FuncDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
                 s = ccd;
         }
     }
-    return s ? s.isFuncDeclaration : null;
-}
 
-/*
-extern (C++) FuncDeclaration buildOpAssignWithCpCtor(StructDeclaration sd, Scope* sc)
-{
-    if (!sd.type.isAssignable)
-        return null;
-
-    auto cpCtor = sd.copyCtor;
-    StorageClass[MOD] copyCtorTable;
-    FuncDeclaration retFunc;
-
-    overloadApply(cpCtor, (Dsymbol s)
+    import dmd.root.array;
+    Array!(CopyCtorDeclaration) cpCtors;
+    if (s)
     {
-        if (auto ccd = s.isCopyCtorDeclaration())
+        overloadApply(s, (Dsymbol fd)
         {
-            TypeFunction tf = ccd.type.toTypeFunction();
+            auto ccd = fd.isCopyCtorDeclaration();
+            assert(ccd);
+
+            CopyCtorDeclaration valueCpCtor = ccd.syntaxCopy(null).isCopyCtorDeclaration();
+            TypeFunction tf = valueCpCtor.type.toTypeFunction();
             Parameter param = Parameter.getNth(tf.parameters, 0);
-            assert(param);
-            if (tf.mod == 0)     // no type modifier for the copy constructor
-                copyCtorTable[param.type.mod] |= mergeFuncAttrs(STC.safe | STC.nothrow_ | STC.pure_ | STC.nogc, ccd);
+            valueCpCtor.ident = Id.byValueCopyCtor;
+            param.storageClass &= ~STC.ref_;
+            cpCtors.push(valueCpCtor);
+
             return 0;
-        }
-        return 0;
-    });
+        });
+    }
 
-    bool hasDtor = sd.dtor !is null;
-    Loc loc;
-    foreach (key; copyCtorTable.keys)
+    foreach(ref cpCtor; cpCtors)
     {
-        auto copyCtorStc = copyCtorTable[key];
-        auto fparams = new Parameters();
-        fparams.push(new Parameter(STC.ref_ | ModToStc(key), sd.type, Id.p, null, null));
-        auto tf = new TypeFunction(fparams, Type.tvoid, 0, LINK.d);
-        auto fop = new FuncDeclaration(sd.loc, Loc.initial, Id.assign, copyCtorStc, tf);
-        fop.storage_class |= STC.inference;
-        fop.generated = true;
-
-        // create expression: S tmp = rhs;
-        VarDeclaration createTmpVarDeclaration(StorageClass stc)
-        {
-            auto idTmp = Identifier.generateId("__tmp");
-            auto expInit = new ExpInitializer(loc, new IdentifierExp(loc, Id.p));
-            auto tmp = new VarDeclaration(loc, sd.type, idTmp, expInit);
-            tmp.storage_class |= stc;
-            return tmp;
-        }
-
-        Expression e;
-        if (hasDtor)
-        {
-            if (copyCtorStc & STC.nothrow_)
-            {
-                // this.__dtor();
-                auto e1 = new CallExp(loc, new DotVarExp(loc, new ThisExp(loc), sd.dtor, false));
-                // this = S.init();
-                auto e2 = getInitExp(sd, sc, loc, sd.type, new ThisExp(loc));
-                // this.copyCtor(rhs);
-                auto e3 = new CallExp(loc,
-                                    new DotVarExp(loc, new ThisExp(loc), sd.copyCtor, false),
-                                    new IdentifierExp(loc, Id.p));
-
-                e = Expression.combine(e1, e2, e3);
-            }
-            else
-            {
-                // S tmp1 = rhs;
-                auto tmp1 = createTmpVarDeclaration(STC.nodtor);
-                auto e1 = new DeclarationExp(loc, tmp1);
-                // S tmp2;
-                auto idTmp2 = Identifier.generateId("__tmp");
-                auto tmp2 = new VarDeclaration(loc, sd.type, idTmp2, null);
-                tmp2.storage_class |= STC.nodtor;
-                auto e2 = new DeclarationExp(loc, tmp2);
-                // tmp2 = this
-                auto e3 = new BlitExp(loc, new VarExp(loc, tmp2), new ThisExp(loc));
-                // this = tmp1
-                auto e4 = new BlitExp(loc, new ThisExp(loc), new VarExp(loc, tmp1));
-                // tmp1 = tmp2
-                auto e5 = new BlitExp(loc, new VarExp(loc, tmp1), new VarExp(loc, tmp2));
-                // tmp1.__dtor
-                auto e6 = new CallExp(loc, new DotVarExp(loc, new VarExp(loc, tmp1), sd.dtor, false));
-
-                e = Expression.combine(Expression.combine(e1, e2), Expression.combine(e3, e4, e5, e6));
-            }
-        }
-        else
-        {
-            // S tmp = rhs;
-            auto tmp = createTmpVarDeclaration(0);
-            auto e1 = new DeclarationExp(loc, tmp);
-            // this = tmp;
-            auto e2 = new BlitExp(loc, new ThisExp(loc), new VarExp(loc, tmp));
-
-            e = Expression.combine(e1, e2);
-        }
-
-        Statement s1 = new ExpStatement(loc, e);
-        fop.fbody = new CompoundStatement(loc, s1);
-        sd.members.push(fop);
-        fop.addMember(sc, sd);
-        sd.hasIdentityAssign = true;
-        const errors = global.startGagging();
+        sd.members.push(cpCtor);
+        cpCtor.addMember(sc, sd);
         Scope* sc2 = sc.push();
         sc2.stc = 0;
         sc2.linkage = LINK.d;
-        fop.dsymbolSemantic(sc2);
-        fop.semantic2(sc2);
-        //fop.semantic3(sc2);
-        printf("fop semantic: %s\n", fop.type.toChars());
+        cpCtor.dsymbolSemantic(sc2);
+        printf("function type: %s\n", cpCtor.type.toChars());
         sc2.pop();
-        if (global.endGagging(errors))
-        {
-            fop.storage_class |= STC.disable;
-            fop.fbody = null;
-        }
-        if (!retFunc)
-            retFunc = fop;
     }
 
-    return retFunc;
+    return s ? s.isCopyCtorDeclaration : null;
 }
-*/
 
 private uint setMangleOverride(Dsymbol s, char* sym)
 {
