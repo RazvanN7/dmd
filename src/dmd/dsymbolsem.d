@@ -397,10 +397,17 @@ private Statement generateCopyCtorBody(StructDeclaration sd)
     return new CompoundStatement(loc, s1);
 }
 
+/* Generates copy constructors for the fields that define copy constructors.
+   The body of all generated copy constructors is the same and it does
+   memberwise initialization. If any initialization in a particular
+   generated copy constructor is not possible (through implicit conversion
+   or copy construction), the generated copy constructor is marked `@disable`.
+ */
 private CopyCtorDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
 {
     Dsymbol s = sd.search(sd.loc, Id.copyCtor);
-    bool[ModBits] copyCtorTable;
+    bool[ModBits] copyCtorTable;      // hashtable used to store what copy constructors should be generated
+    // see if any struct members define a copy constructor
     foreach (v; sd.fields)
     {
         if (v.storage_class & STC.ref_)
@@ -413,6 +420,7 @@ private CopyCtorDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
         StructDeclaration sdv = (cast(TypeStruct)tv).sym;
         if (auto copyCtor = sdv.copyCtor)
         {
+            // store the type of the defined copy constructors for member v
             overloadApply(copyCtor, (Dsymbol s)
             {
                 auto ccd = s.isCopyCtorDeclaration();
@@ -430,8 +438,10 @@ private CopyCtorDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
         }
     }
 
+    // if any field defines a copy constructor
     if (copyCtorTable.length)
     {
+        // generate the body that does memberwise initialization
         auto copyCtorBody = generateCopyCtorBody(sd);
         foreach (key; copyCtorTable.keys)
         {
@@ -460,39 +470,6 @@ private CopyCtorDeclaration buildCopyCtor(StructDeclaration sd, Scope* sc)
                 s = ccd;
         }
     }
-
-    import dmd.root.array;
-    Array!(CopyCtorDeclaration) cpCtors;
-    if (s)
-    {
-        overloadApply(s, (Dsymbol fd)
-        {
-            auto ccd = fd.isCopyCtorDeclaration();
-            assert(ccd);
-
-            CopyCtorDeclaration valueCpCtor = ccd.syntaxCopy(null).isCopyCtorDeclaration();
-            TypeFunction tf = valueCpCtor.type.toTypeFunction();
-            Parameter param = Parameter.getNth(tf.parameters, 0);
-            valueCpCtor.ident = Id.byValueCopyCtor;
-            param.storageClass &= ~STC.ref_;
-            cpCtors.push(valueCpCtor);
-
-            return 0;
-        });
-    }
-
-    foreach(ref cpCtor; cpCtors)
-    {
-        sd.members.push(cpCtor);
-        cpCtor.addMember(sc, sd);
-        Scope* sc2 = sc.push();
-        sc2.stc = 0;
-        sc2.linkage = LINK.d;
-        cpCtor.dsymbolSemantic(sc2);
-        printf("function type: %s\n", cpCtor.type.toChars());
-        sc2.pop();
-    }
-
     return s ? s.isCopyCtorDeclaration : null;
 }
 
@@ -3821,14 +3798,17 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
         if (cctd.errors)
             return;
 
-        // copy constructor parameter type needs to be the same as
-        // the struct containing it (not taking into account qualifiers)
         TypeFunction tf = cctd.type.toTypeFunction();
         Parameter param = Parameter.getNth(tf.parameters, 0);
         assert(param);
 
+        // store the source-destination type of the copy constructor;
+        // this is needed when generating copy constructors for fields;
         ModBits key = createModKey(param.type.mod, tf.mod);
         sd.copyCtorTypes[key] = true;
+
+        // copy constructor parameter type needs to be the same as
+        // the struct containing it (not taking into account qualifiers)
         Type unqualParamType = param.type.mutableOf().unSharedOf();
         Type unqualStructType = sd.type.mutableOf().unSharedOf();
         if (unqualParamType != unqualStructType)

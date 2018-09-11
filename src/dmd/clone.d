@@ -258,7 +258,6 @@ extern (C++) FuncDeclaration buildOpAssign(StructDeclaration sd, Scope* sc)
         sd.hasIdentityAssign = true;
         return f;
     }
-
     // Even if non-identity opAssign is defined, built-in identity opAssign
     // will be defined.
     if (!needOpAssign(sd))

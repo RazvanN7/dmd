@@ -4448,8 +4448,6 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             assert(exp.f);
             tiargs = null;
 
-            //printf("exp.f: %s\n", exp.f.toChars());
-
             if (exp.f.overnext)
                 exp.f = resolveFuncCall(exp.loc, sc, exp.f, tiargs, null, exp.arguments, 2);
             else
@@ -4459,7 +4457,6 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                 const(char)* failMessage;
                 if (!tf.callMatch(null, exp.arguments, 0, &failMessage, sc))
                 {
-
                     OutBuffer buf;
                     buf.writeByte('(');
                     argExpTypesToCBuffer(&buf, exp.arguments);
@@ -7752,14 +7749,14 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                 /* Rewrite as:
                                  * e1 = init, e1.copyCtor(e2);
                                  */
-                                Expression einit = getInitExp(sd, sc, exp.loc, t1, e1x);
+                                Expression einit = getInitExp(sd, exp.loc, sc, t1);
                                 if (!einit)
                                     return setError();
                                 Expression e;
                                 e = new DotIdExp(exp.loc, e1x, Id.copyCtor);
                                 e = new CallExp(exp.loc, e, e2x);
                                 e = new CommaExp(exp.loc, einit, e);
-                                printf("e: %s\n", e.toChars());
+                                //printf("e: %s\n", e.toChars());
                                 /* If semantic is performed correctly on e
                                  * there is a copy constructor overload to be used.
                                  * Otherwise, implicit copying may be used
@@ -7800,24 +7797,6 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                              * so should not call the destructor on it.
                              */
                             e2x = valueNoDtor(e2x);
-                            if (sd.copyCtor)
-                            {
-                                Expression einit = getInitExp(sd, sc, exp.loc, t1, e1x);
-                                if (!einit)
-                                    return setError();
-                                Expression e;
-                                e = new DotIdExp(exp.loc, e1x, Id.byValueCopyCtor);
-                                e = new CallExp(exp.loc, e, e2x);
-                                e = new CommaExp(exp.loc, einit, e);
-                                printf("e: %s\n", e.toChars());
-                                /* If semantic is performed correctly on e
-                                 * there is a copy constructor overload to be used.
-                                 * Otherwise, implicit copying may be used
-                                 */
-                                result = e.expressionSemantic(sc);
-                                if (result.op != TOK.error)
-                                    return;
-                            }
                         }
                     }
                 }
