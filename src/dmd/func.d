@@ -2749,12 +2749,14 @@ extern (C++) FuncDeclaration resolveFuncCall(const ref Loc loc, Scope* sc, Dsymb
             assert(fd);
 
             uint errors;
-            if (fd.isCopyCtorDeclaration())
+            bool isCpCtor = fd.isCopyCtorDeclaration() !is null;
+            if (isCpCtor)
                 errors = global.startGagging();
 
             if (fd.checkDisabled(loc, sc))
             {
-                global.endGagging(errors);
+                if (isCpCtor)
+                    global.endGagging(errors);
                 return null;
             }
 
@@ -2834,7 +2836,7 @@ extern (C++) FuncDeclaration resolveFuncCall(const ref Loc loc, Scope* sc, Dsymb
                     .errorSupplemental(loc, "... (%d more, -v to show) ...", num);
                 return 1;   // stop iterating
             }, sc);
-            if (fd.isCopyCtorDeclaration())
+            if (isCpCtor)
                 global.endGagging(errors);
         }
     }

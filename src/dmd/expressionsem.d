@@ -7749,7 +7749,9 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
                                 /* Rewrite as:
                                  * e1 = init, e1.copyCtor(e2);
                                  */
-                                Expression einit = getInitExp(sd, exp.loc, sc, t1);
+                                Expression einit = new BlitExp(exp.loc, exp.e1, getInitExp(sd, exp.loc, sc, t1));
+                                einit.type = e1x.type;
+
                                 if (!einit)
                                     return setError();
                                 Expression e;
