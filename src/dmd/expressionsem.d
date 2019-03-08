@@ -1736,6 +1736,13 @@ private bool functionParameters(const ref Loc loc, Scope* sc,
                     return errorArgs();
                 }
                 arg = p.defaultArg;
+                auto mockExp = arg.syntaxCopy();
+                mockExp.loc = loc;
+                mockExp = mockExp.expressionSemantic(sc);
+                mockExp = resolveProperties(sc, mockExp);
+                if (mockExp.op == TOK.error)
+                    errorSupplemental(loc, "default argument `%s` of function `%s` cannot be evaluated in the scope of function `%s`",
+                        p.toChars(), fd.toChars(), sc.func.toChars());
                 arg = inlineCopy(arg, sc);
                 // __FILE__, __LINE__, __MODULE__, __FUNCTION__, and __PRETTY_FUNCTION__
                 arg = arg.resolveLoc(loc, sc);
