@@ -288,6 +288,8 @@ enum TOK : ubyte
     objcClassReference,
     vectorArray,
 
+    mutable,
+
     max_,
 }
 
@@ -420,6 +422,7 @@ private immutable TOK[] keywords =
     TOK.prettyFunction,
     TOK.shared_,
     TOK.immutable_,
+    TOK.mutable,
 ];
 
 /***********************************************************
@@ -699,6 +702,8 @@ extern (C++) struct Token
 
         TOK.objcClassReference: "class",
         TOK.vectorArray: "vectorarray",
+
+        TOK.mutable: "__mutable",
     ];
 
     static assert(() {

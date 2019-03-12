@@ -3689,8 +3689,11 @@ Expression dotExp(Type mt, Scope* sc, Expression e, Identifier ident, int flag)
                 d.dsymbolSemantic(null);
             checkAccess(e.loc, sc, e, d);
             auto ve = new VarExp(e.loc, d);
-            if (d.isVarDeclaration() && d.needThis())
-                ve.type = d.type.addMod(e.type.mod);
+            //if (d.isVarDeclaration() && d.needThis())
+            //    ve.type = d.type.addMod(e.type.mod);
+            auto vd = d.isVarDeclaration();
+            if (vd && vd.needThis())
+                ve.type = vd.storage_class & STC.mutable ? d.type.mutableAddMod(e.type.mod) : d.type.addMod(e.type.mod);
             return ve;
         }
 

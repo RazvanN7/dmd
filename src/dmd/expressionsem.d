@@ -5846,7 +5846,16 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
             if (t1.ty == Tpointer)
                 t1 = t1.nextOf();
 
-            exp.type = exp.type.addMod(t1.mod);
+            if (exp.var.storage_class & STC.mutable)
+            {
+                if (sc.func && !sc.intypeof && sc.func.setUnsafe())
+                    exp.error("cannot access `__mutable` field `%s` in `@safe` function `%s`", exp.var.ident.toChars(), sc.func.toChars());
+                exp.type = exp.type.mutableAddMod(t1.mod);
+            }
+            else
+            {
+                exp.type = exp.type.addMod(t1.mod);
+            }
 
             Dsymbol vparent = exp.var.toParent();
             AggregateDeclaration ad = vparent ? vparent.isAggregateDeclaration() : null;

@@ -1023,6 +1023,23 @@ private extern(C++) final class DsymbolSemanticVisitor : Visitor
             }
         }
 
+        if (dsym.storage_class & STC.mutable)
+        {
+            if (!dsym.isField())
+            {
+                dsym.error("cannot be declared `__mutable`. Only fields can be `__mutable`");
+            }
+            else
+            {
+                if (dsym.storage_class & STC.immutable_)
+                    dsym.error("cannot be both `__mutable` and `immutable`");
+                if (dsym.storage_class & STC.const_)
+                    dsym.error("cannot be both `__mutable` and `const`");
+                if (dsym.protection.kind != Prot.Kind.private_)
+                    dsym.error("is `__mutable`, therefore it cannot be `public`. Add `private` to the declaration.");
+            }
+        }
+
         // Calculate type size + safety checks
         if (sc.func && !sc.intypeof)
         {
