@@ -3,10 +3,10 @@
 /*
 TEST_OUTPUT:
 ---
-fail_compilation/test21259.d(39): Deprecation: field `width` of struct `Foo` is deprecated
-fail_compilation/test21259.d(40): Deprecation: field `width` of struct `Foo2` is deprecated
-fail_compilation/test21259.d(41): Deprecation: field `bar` of struct `Foo3` is deprecated
-fail_compilation/test21259.d(42): Deprecation: field `width` of struct `Foo4` is deprecated
+fail_compilation/test21259.d(44): Deprecation: alias `test21259.Foo.width` is deprecated
+fail_compilation/test21259.d(45): Deprecation: alias `test21259.Foo2.width` is deprecated
+fail_compilation/test21259.d(46): Deprecation: variable `test21259.Foo3.bar` is deprecated
+fail_compilation/test21259.d(47): Deprecation: alias `test21259.Foo4.width` is deprecated
 ---
 */
 
@@ -32,6 +32,11 @@ struct Foo4
     int bar;
 deprecated:
     alias width = bar;
+}
+
+deprecated void foo()
+{
+    Foo a = { width : 100};
 }
 
 void main()
