@@ -102,6 +102,10 @@ extern(C++) Initializer initializerSemantic(Initializer init, Scope* sc, ref Typ
 
     Initializer visitVoid(VoidInitializer i)
     {
+        if (sc.func && sc.func.isSafe())
+        {
+            deprecation(i.loc, "`void` initialization is deprecated in `@safe` code");
+        }
         i.type = t;
         return i;
     }
