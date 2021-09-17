@@ -1,5 +1,4 @@
 /**
-Generates the compiler version, the version printed with `dmd --version`.
 
 Outputs a file with the generated version which is imported as a string literal
 in the compiler source code.
