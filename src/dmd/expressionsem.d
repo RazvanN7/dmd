@@ -316,6 +316,9 @@ Expression resolveOpDollar(Scope* sc, ArrayExp ae, IntervalExp ie, Expression* p
     ie.lwr = sem(ie.lwr);
     ie.upr = sem(ie.upr);
 
+    if (ie.lwr.isErrorExp() || ie.upr.isErrorExp())
+        errors = true;
+
     if (lengthVar != ae.lengthVar && sc.func)
     {
         // If $ was used, declare it now
@@ -2793,7 +2796,7 @@ private extern (C++) final class ExpressionSemanticVisitor : Visitor
         else if (const p = Scope.search_correct_C(exp.ident))
             exp.error("undefined identifier `%s`, did you mean `%s`?", exp.ident.toChars(), p);
         else
-            exp.error("undefined identifier `%s`", exp.ident.toChars());
+            exp.error("undefined identifier `%s`", exp.ident == Id.dollar ? "$" : exp.ident.toChars());
 
         result = ErrorExp.get();
     }
